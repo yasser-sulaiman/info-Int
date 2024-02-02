@@ -1,95 +1,101 @@
-from dash import Dash
 from dash import html, dcc, dash_table
 import dash
 import pandas as pd
-import dash_bootstrap_components as dbc
 # dash application
 app = dash.Dash(__name__)
 
 data = pd.read_csv("data/manual_integrated_data.csv")
 
+LEAGUES = sorted(data['League'].unique())
+LEAGUES.insert(0, "All")
+#import pdb; pdb.set_trace()
 app.layout = html.Div(
     children=[
         html.H1("EUROPEAN FOOTBALL LEAGUES"),
-        # make the dropdowns in a div for styling
         html.Div(
             [
-                # dropdown for Year
-                # add title to the dropdown
-                html.P(
+                html.Div(
                     [
-                        "Select Year",
-                        dcc.Dropdown(
-                            id='Year',
-                            options=sorted(data['Year'].unique()),
-                            value=2015
+                        # make the dropdowns in a div for styling
+                        # dropdown for League
+                        # add title to the dropdown
+                        html.P(
+                            [
+                                "Select League",
+                                dcc.Dropdown(
+                                    id='League',
+                                    options=LEAGUES,
+                                    value='All'
+                                ),
+                            ]
                         ),
-                    ]
-                ),
- 
-                
-                # dropdown for League
-                # add title to the dropdown
-                html.P(
-                    [
-                        "Select League",
-                        dcc.Dropdown(
-                            id='League',
-                            options=sorted(data['League'].unique()),
-                            value='Premier League'
+
+                        # dropdown for Year
+                        # add title to the dropdown
+                        html.P(
+                            [
+                                "Select Year",
+                                dcc.Dropdown(
+                                    id='Year',
+                                    options=sorted(data['Year'].unique()),
+                                ),
+                            ]
                         ),
-                    ]
+        
+                        # dropdown for HomeTeam
+                        # add title to the dropdown
+                        html.P(
+                            [
+                                "Select Home Team",
+                                dcc.Dropdown(
+                                    id='HomeTeam',
+                                    options=sorted(data['HomeTeam'].unique()),
+                                ),
+                            ]
+                        ),
+
+                        # dropdown for AwayTeam
+                        # add title to the dropdown
+                        html.P(
+                            [
+                                "Select Away Team",
+                                dcc.Dropdown(
+                                    id='AwayTeam',
+                                    options=sorted(data['AwayTeam'].unique()),
+                                ),
+                            ]
+                        ),
+
+                        # submit button
+                        html.Button(id='submit-button', n_clicks=0, children='Submit'),
+
+                        # most goals league
+                        html.Button(id='most-goals-league', n_clicks=0, children='Most Goals League'),
+
+                        # most goals team
+                        html.Button(id='most-goals-team', n_clicks=0, children='Most Goals Team')
+                    ],
+                    style={'flex': 1, 'border': '1px', 'margin': '10px'}
                 ),
 
-                # dropdown for HomeTeam
-                # add title to the dropdown
-                html.P(
-                    [
-                        "Select HomeTeam",
-                        dcc.Dropdown(
-                            id='HomeTeam',
-                            options=sorted(data['HomeTeam'].unique()),
-                            value='Arsenal'
-                        ),
-                    ]
-                ),
-                # dropdown for AwayTeam
-                # add title to the dropdown
-                html.P(
-                    [
-                        "Select AwayTeam",
-                        dcc.Dropdown(
-                            id='AwayTeam',
-                            options=sorted(data['AwayTeam'].unique()),
-                            value='Chelsea'
-                        ),
-                    ]
-                ),
+                html.Div(
+                    [   
+                        # div for displaying the result
+                        html.H2("Most Goals: League"),
+                        html.Div(id='results-league', style={'height': '25'}),
+
+                        # div for displaying the result
+                        html.H2("Most Goals: Team"),
+                        html.Div(id='results-team', style={'height': '25'}),
+
+                        # div for displaying the result
+                        html.Div(id='result', style={'overflow': 'scroll', 'height': '200px'})
+                    ],
+                    style={'flex': 1, 'border': '1px', 'margin': '10px'}
+                )
             ],
-            className='dropdown-container',
-        ),
-
-        # submit button
-        html.Button(id='submit-button', n_clicks=0, children='Submit'),
-
-        # most goals league
-        html.Button(id='most-goals-league', n_clicks=0, children='Most Goals League'),
-
-        # most goals team
-        html.Button(id='most-goals-team', n_clicks=0, children='Most Goals Team'),
-
-        # div for displaying the result
-        html.H2("Results Most Goals League"),
-        html.Div(id='results-league', style={'height': '25'}),
-
-        # div for displaying the result
-        html.H2("Results Most Goals Team"),
-        html.Div(id='results-team', style={'height': '25'}),
-
-        # div for displaying the result
-        html.H2("Results"),
-        html.Div(id='result', style={'overflow': 'scroll', 'height': '400px'})
-
+            style={"display": "flex"}
+        )
     ]
 )
 
@@ -106,15 +112,17 @@ def update_result(n_clicks, year, league, hometeam, awayteam):
     # filter the dataframe based on the values from the dropdowns
     filtered_df = data.copy()
     if year is not None:
-        filtered_df = filtered_df[filtered_df['Year'] == year]
+        filtered_df = filtered_df.query("Year==@year")
     if league is not None:
-        filtered_df = filtered_df[filtered_df['League'] == league]
+        if league != "All":
+            filtered_df = filtered_df.query("League==@league")
     if hometeam is not None:
-        filtered_df = filtered_df[filtered_df['HomeTeam'] == hometeam]
+        filtered_df = filtered_df.query("HomeTeam==@hometeam")
     if awayteam is not None:
-        filtered_df = filtered_df[filtered_df['AwayTeam'] == awayteam]
+        filtered_df = filtered_df.query("AwayTeam==@awayteam")
 
     # return the result div with the filtered dataframe
+    # import pdb; pdb.set_trace()
 
     records = filtered_df.to_dict('records')
     columns = [{'name': i, 'id': i} for i in filtered_df.columns]
@@ -126,15 +134,33 @@ def update_result(n_clicks, year, league, hometeam, awayteam):
 @app.callback(
     dash.dependencies.Output('HomeTeam', 'options'),
     dash.dependencies.Output('AwayTeam', 'options'),
-    [dash.dependencies.Input('League', 'value')])
-def update_hometeam(league):
+    [dash.dependencies.Input('League', 'value'),
+     dash.dependencies.Input('Year', 'value')])
+def update_teams(league, year):
     # filter the dataframe based on the selected league
     filtered_df = data.copy()
     if league is not None:
-        filtered_df = filtered_df[filtered_df['League'] == league]
+        if league != "All":
+            filtered_df = filtered_df.query("League==@league")
+    if year is not None:
+        filtered_df = filtered_df.query("Year==@year")
 
     # return the options of the HomeTeam dropdown
     return [{'label': i, 'value': i} for i in filtered_df['HomeTeam'].unique()], [{'label': i, 'value': i} for i in filtered_df['HomeTeam'].unique()]
+
+
+@app.callback(
+    dash.dependencies.Output('Year', 'options'),
+    [dash.dependencies.Input('League', 'value')])
+def update_years(league):
+    # filter the dataframe based on the selected league
+    filtered_df = data.copy()
+    if league is not None:
+        if league != "All":
+            filtered_df = filtered_df.query("League==@league")
+
+    # return the options of the HomeTeam dropdown
+    return sorted(filtered_df['Year'].unique())
 
 
 # callback for the most goals league button
@@ -146,7 +172,7 @@ def update_most_goals_league(n_clicks, year):
     # filter the dataframe based on the selected year
     filtered_df = data.copy()
     if year is not None:
-        filtered_df = filtered_df[filtered_df['Year'] == year]
+        filtered_df = filtered_df.query("Year==@year")
 
     # Home Goals
     # group the dataframe by league and sum the goals
@@ -184,10 +210,11 @@ def update_most_goals_team(n_clicks,league, year):
     filtered_df = data.copy()
 
     if league is not None:
-        filtered_df = filtered_df[filtered_df['League'] == league]
+        if league != "All":
+            filtered_df = filtered_df.query("League==@league")
 
     if year is not None:
-        filtered_df = filtered_df[filtered_df['Year'] == year]
+        filtered_df = filtered_df.query("Year==@year")
     
     # Home Goals
     # group the dataframe by league and sum the goals
@@ -214,7 +241,5 @@ def update_most_goals_team(n_clicks,league, year):
     )
 
 
-
-
 if __name__ == "__main__":
-    app.run_server(debug=True)
+    app.run_server(debug=False)
